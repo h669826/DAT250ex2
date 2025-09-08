@@ -1,8 +1,15 @@
 package com.example.demo.model;
 
-import java.util.List;
+import com.fasterxml.jackson.annotation.JsonIdentityInfo;
+import com.fasterxml.jackson.annotation.JsonIdentityReference;
+import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 
+import java.util.List;
+import java.util.UUID;
+
+@JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
 public class User {
+    private UUID id = UUID.randomUUID();
     private String username;
     private String email;
     private List<Poll> createdPolls;
@@ -15,6 +22,12 @@ public class User {
         this.email = email;
         this.createdPolls = createdPolls;
         this.votes = votes;
+    }
+    public UUID getId() {
+        return id;
+    }
+    public void setId(UUID id) {
+        this.id = id;
     }
     public String getUsername() {
         return username;

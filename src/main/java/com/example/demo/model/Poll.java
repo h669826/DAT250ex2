@@ -1,13 +1,22 @@
 package com.example.demo.model;
 
+import com.fasterxml.jackson.annotation.JsonIdentityInfo;
+import com.fasterxml.jackson.annotation.JsonIdentityReference;
+import com.fasterxml.jackson.annotation.ObjectIdGenerators;
+
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
+@JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
 public class Poll {
+    private UUID id = UUID.randomUUID();
     private String question;
     private Instant publishedAt;
     private Instant validUntil;
     private List<VoteOption> voteOptions;
+
+    @JsonIdentityReference(alwaysAsId = true)
     private User creator;
 
     public Poll(){}
@@ -19,6 +28,12 @@ public class Poll {
         this.voteOptions = voteOptions;
         this.creator = creator;
     }
+    public UUID getId() {
+        return id;
+    }
+    public void setId(UUID id) {
+        this.id = id;
+    }
     public String getQuestion() {
         return question;
     }
@@ -27,6 +42,9 @@ public class Poll {
     }
     public Instant getPublishedAt() {
         return publishedAt;
+    }
+    public void setPublishedAt(Instant publishedAt) {
+        this.publishedAt = publishedAt;
     }
 
     public Instant getValidUntil() {
