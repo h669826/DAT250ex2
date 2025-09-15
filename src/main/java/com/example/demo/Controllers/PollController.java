@@ -13,6 +13,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import static org.springframework.web.bind.annotation.RequestMethod.*;
+
+@CrossOrigin(
+        origins = {
+                "http://localhost:5173",
+                "http://127.0.0.1:5173"
+        },
+        allowedHeaders = "*",
+        methods = { GET, POST, PUT, PATCH, DELETE, OPTIONS },
+        maxAge = 3600
+)
 @RestController
 @RequestMapping("/api/v1/polls")
 public class PollController {
