@@ -56,13 +56,13 @@ public class PollController {
             publishedAt = java.time.Instant.parse(String.valueOf(ts));
         }
 
-        com.example.demo.model.User user = new com.example.demo.model.User();
+        User user = new User();
         user.setId(userId);
 
-        com.example.demo.model.VoteOption opt = new com.example.demo.model.VoteOption();
+        VoteOption opt = new VoteOption();
         opt.setId(optionId);
 
-        com.example.demo.model.Vote vote = new com.example.demo.model.Vote();
+        Vote vote = new Vote();
         vote.setUser(user);
         vote.setVoteOption(opt);
         if (publishedAt != null) vote.setPublishedAt(publishedAt);
