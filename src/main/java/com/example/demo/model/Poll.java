@@ -1,78 +1,11 @@
 package com.example.demo.model;
 
-import com.fasterxml.jackson.annotation.JsonIdentityInfo;
-import com.fasterxml.jackson.annotation.JsonIdentityReference;
-import com.fasterxml.jackson.annotation.ObjectIdGenerators;
-
-import java.time.Instant;
-import java.util.List;
-import java.util.UUID;
-
-@JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
-public class Poll {
-    private UUID id = UUID.randomUUID();
-    private String question;
-    private Instant publishedAt;
-    private Instant validUntil;
-    private List<VoteOption> voteOptions;
-
-    @JsonIdentityReference(alwaysAsId = true)
-    private User creator;
-
-    public Poll(){}
-
-    public Poll(String question, Instant publishedAt, Instant validUntil, List<VoteOption> voteOptions, User creator) {
-        this.question = question;
-        this.publishedAt = publishedAt;
-        this.validUntil = validUntil;
-        this.voteOptions = voteOptions;
-        this.creator = creator;
-    }
-    public UUID getId() {
-        return id;
-    }
-    public void setId(UUID id) {
-        this.id = id;
-    }
-    public String getQuestion() {
-        return question;
-    }
-    public void setQuestion(String question) {
-        this.question = question;
-    }
-    public Instant getPublishedAt() {
-        return publishedAt;
-    }
-    public void setPublishedAt(Instant publishedAt) {
-        this.publishedAt = publishedAt;
-    }
-
-    public Instant getValidUntil() {
-        return validUntil;
-    }
-    public void setValidUntil(Instant validUntil) {
-        this.validUntil = validUntil;
-    }
-    public List<VoteOption> getVoteOptions() {
-        return voteOptions;
-    }
-    public void setVoteOptions(List<VoteOption> voteOptions) {
-        this.voteOptions = voteOptions;
-    }
-    public User getCreator() {
-        return creator;
-    }
-    public void setCreator(User creator) {
-        this.creator = creator;
-    }
-}/*
+import com.fasterxml.jackson.annotation.*;
 import jakarta.persistence.*;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import com.fasterxml.jackson.annotation.JsonIdentityInfo;
-import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 
 @JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
 @Entity
@@ -82,7 +15,11 @@ public class Poll {
 
     private UUID id = UUID.randomUUID();
     private String question;
-    private User creator; // keep original field name
+
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "created_by_id", nullable = false)
+    private User creator;
+
     private List<VoteOption> voteOptions = new ArrayList<>();
 
     private Instant publishedAt = Instant.now();
@@ -98,7 +35,7 @@ public class Poll {
     public void setQuestion(String question) { this.question = question; }
 
     @ManyToOne(optional = false)
-    @JoinColumn(name = "created_by_id", nullable = false)
+    @JsonIgnore
     public User getCreatedBy() { return creator; }
     public void setCreatedBy(User u) {
         this.creator = u;
@@ -110,6 +47,7 @@ public class Poll {
 
     @OneToMany(mappedBy = "poll", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("presentationOrder ASC")
+    @JsonIgnore
     public List<VoteOption> getOptions() {
         if (voteOptions == null) voteOptions = new ArrayList<>();
         return voteOptions;
@@ -130,19 +68,38 @@ public class Poll {
     }
 
     @Transient
+    @JsonProperty("creator")
+    @JsonIdentityReference(alwaysAsId = true)
     public User getCreator() { return creator; }
+    @JsonProperty("creator")
+    @JsonIdentityReference(alwaysAsId = true)
     public void setCreator(User creator) {
         setCreatedBy(creator);
     }
 
     @Transient
+    @JsonProperty("createdBy")
+    @JsonIdentityReference(alwaysAsId = true)
+    public User getCreatedByJson() { return creator; }
+    @JsonProperty("createdBy")
+    @JsonIdentityReference(alwaysAsId = true)
+    public void setCreatedByJson(User u) { setCreatedBy(u); }
+
+    @Transient
+    @JsonProperty("voteOptions")
     public List<VoteOption> getVoteOptions() { return voteOptions; }
     public void setVoteOptions(List<VoteOption> voteOptions) { this.voteOptions = voteOptions; }
+
+    @Transient
+    @JsonProperty("options")
+    public List<VoteOption> getOptionsJson() { return voteOptions; }
+    @JsonProperty("options")
+    public void setOptionsJson(List<VoteOption> opts) { this.voteOptions = opts; }
 
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof Vote other)) return false;
+        if (!(o instanceof Poll other)) return false;
         return id != null && id.equals(other.getId());
     }
 
@@ -151,7 +108,7 @@ public class Poll {
         return id != null ? id.hashCode() : 0;
     }
 
-}*/
+}
 
 
 

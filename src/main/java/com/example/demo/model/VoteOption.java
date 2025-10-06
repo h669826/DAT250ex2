@@ -1,49 +1,7 @@
 package com.example.demo.model;
 
-import com.fasterxml.jackson.annotation.JsonIdentityInfo;
-import com.fasterxml.jackson.annotation.JsonIdentityReference;
-import com.fasterxml.jackson.annotation.ObjectIdGenerators;
-
-import java.util.UUID;
-
-@JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
-public class VoteOption {
-    private UUID id = UUID.randomUUID();
-    private String caption;
-    private int presentationOrder;
-
-    @JsonIdentityReference(alwaysAsId = true)
-    private Poll poll;
-
-    public VoteOption(){}
-
-    public VoteOption(String caption) {
-        this.caption = caption;
-        this.presentationOrder = 0;
-    }
-    public void setId(UUID id) {
-        this.id = id;
-    }
-    public UUID getId() {
-        return id;
-    }
-    public String getCaption() {
-        return caption;
-    }
-    public void setCaption(String caption) {
-        this.caption = caption;
-    }
-    public int getPresentationOrder() {
-        return presentationOrder;
-    }
-    public void setPresentationOrder(int presentationOrder) {
-        this.presentationOrder = presentationOrder;
-    }
-    public void setPoll(Poll poll) {
-        this.poll = poll;
-    }
-}
-/*
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import java.util.UUID;
 import com.fasterxml.jackson.annotation.JsonIdentityInfo;
@@ -58,6 +16,7 @@ public class VoteOption {
     private UUID id = UUID.randomUUID();
     private String caption;
     private int presentationOrder;
+
     private Poll poll;
 
     public VoteOption() {}
@@ -70,19 +29,26 @@ public class VoteOption {
     public String getCaption() { return caption; }
     public void setCaption(String caption) { this.caption = caption; }
 
-    @Column(name = "presentation_order", nullable = false)
+    @Column(name = "presentationOrder", nullable = false)
     public int getPresentationOrder() { return presentationOrder; }
     public void setPresentationOrder(int presentationOrder) { this.presentationOrder = presentationOrder; }
 
+    @Transient
+    @JsonProperty("order")
+    public int getOrder() { return presentationOrder; }
+    @JsonProperty("order")
+    public void setOrder(int v) { this.presentationOrder = v; }
+
     @ManyToOne(optional = false)
     @JoinColumn(name = "poll_id", nullable = false)
+    @JsonIgnore
     public Poll getPoll() { return poll; }
     public void setPoll(Poll poll) { this.poll = poll; }
 
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof Vote other)) return false;
+        if (!(o instanceof VoteOption other)) return false;
         return id != null && id.equals(other.getId());
     }
 
@@ -92,5 +58,5 @@ public class VoteOption {
     }
 
 }
-*/
+
 

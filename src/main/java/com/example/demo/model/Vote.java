@@ -1,68 +1,10 @@
 package com.example.demo.model;
 
-import com.fasterxml.jackson.annotation.JsonIdentityInfo;
-import com.fasterxml.jackson.annotation.JsonIdentityReference;
-import com.fasterxml.jackson.annotation.ObjectIdGenerators;
-
-import java.time.Instant;
-import java.util.UUID;
-
-@JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
-public class Vote {
-    private UUID id = UUID.randomUUID();
-
-    @JsonIdentityReference(alwaysAsId = true)
-    private User user;
-
-    private Instant publishedAt;
-
-    @JsonIdentityReference(alwaysAsId = true)
-    private Poll poll;
-
-    @JsonIdentityReference(alwaysAsId = true)
-    private VoteOption voteOption;
-
-    public Vote(){}
-
-    public Vote(Instant publishedAt, VoteOption voteOption, User user) {
-        this.publishedAt = publishedAt;
-        this.voteOption = voteOption;
-        this.user = user;
-    }
-    public UUID getId() {
-        return id;
-    }
-    public void setId(UUID id) {
-        this.id = id;
-    }
-    public Instant getPublishedAt() {
-        return publishedAt;
-    }
-
-    public void setPublishedAt(Instant publishedAt) {
-        this.publishedAt = publishedAt;
-    }
-
-    public VoteOption getVoteOption() {
-        return voteOption;
-    }
-    public void setVoteOption(VoteOption voteOption) {
-        this.voteOption = voteOption;
-    }
-    public User getUser() {
-        return user;
-    }
-    public void setUser(User user) {
-        this.user = user;
-    }
-}
-/*
+import com.fasterxml.jackson.annotation.*;
 import jakarta.persistence.*;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
-import com.fasterxml.jackson.annotation.JsonIdentityInfo;
-import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 
 @JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
 @Entity
@@ -72,7 +14,12 @@ public class Vote {
 
     private UUID id = UUID.randomUUID();
 
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "voted_by_id")
     private User user;
+
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "vote_option_id")
     private VoteOption option;
 
     private Instant publishedAt = Instant.now();
@@ -84,8 +31,15 @@ public class Vote {
     public void setId(UUID id) { this.id = id; }
 
     @ManyToOne(optional = false)
-    @JoinColumn(name = "voted_by_id", nullable = false)
+    @JsonIgnore
     public User getVotedBy() { return user; }
+
+    @Transient
+    @JsonProperty("user")
+    @JsonIdentityReference(alwaysAsId = true)
+    public User getUser(){
+        return user;
+    }
     public void setVotedBy(User u) {
         this.user = u;
         if (u != null) {
@@ -97,7 +51,7 @@ public class Vote {
     }
 
     @ManyToOne(optional = false)
-    @JoinColumn(name = "vote_option_id", nullable = false)
+    @JsonIgnore
     public VoteOption getVotesOn() { return option; }
     public void setVotesOn(VoteOption option) { this.option = option; }
 
@@ -105,21 +59,33 @@ public class Vote {
     public Instant getPublishedAt() { return publishedAt; }
     public void setPublishedAt(Instant publishedAt) { this.publishedAt = publishedAt; }
 
-    @Transient
-    public User getUser() { return user; }
+    @JsonProperty("user")
+    @JsonIdentityReference(alwaysAsId = true)
     public void setUser(User u) {
         setVotedBy(u);
     }
 
     @Transient
+    @JsonProperty("voteOption")
+    @JsonIdentityReference(alwaysAsId = true)
     public VoteOption getOption() { return option; }
     public void setOption(VoteOption o) {
         setVotesOn(o);
     }
 
+    @JsonProperty("voteOption")
+    @JsonIdentityReference(alwaysAsId = true)
     public void setVoteOption(VoteOption opt) {
         this.option = opt;
     }
+
+    @Transient
+    @JsonProperty("option")
+    @JsonIdentityReference(alwaysAsId = true)
+    public VoteOption getOptionAlias() { return option; }
+    @JsonProperty("option")
+    @JsonIdentityReference(alwaysAsId = true)
+    public void setOptionAlias(VoteOption opt) { setVotesOn(opt); }
 
     @Override
     public boolean equals(Object o) {
@@ -133,7 +99,7 @@ public class Vote {
         return id != null ? id.hashCode() : 0;
     }
 
-}*/
+}
 
 
 
