@@ -20,6 +20,7 @@ public class Poll {
     @JoinColumn(name = "created_by_id", nullable = false)
     private User creator;
 
+    @OneToMany(mappedBy = "poll", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<VoteOption> voteOptions = new ArrayList<>();
 
     private Instant publishedAt = Instant.now();
@@ -88,7 +89,10 @@ public class Poll {
     @Transient
     @JsonProperty("voteOptions")
     public List<VoteOption> getVoteOptions() { return voteOptions; }
-    public void setVoteOptions(List<VoteOption> voteOptions) { this.voteOptions = voteOptions; }
+    public void setVoteOptions(List<VoteOption> voteOptions) {
+        this.voteOptions.clear();
+        if (voteOptions != null) this.voteOptions.addAll(voteOptions);
+    }
 
     @Transient
     @JsonProperty("options")

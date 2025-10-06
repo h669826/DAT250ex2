@@ -12,7 +12,7 @@ public interface PollService {
     void addPoll(UUID uid, Poll poll);
     void deletePoll(UUID pid);
     List<Poll> getPolls(UUID uid);
-    void addVote(UUID pid, Vote vote);
+    boolean addVote(UUID pollId, Vote vote);
     List<Vote> getVotes(UUID pid);
     void addOption(UUID pid, VoteOption option);
     void deleteOption(UUID pid, UUID oid);

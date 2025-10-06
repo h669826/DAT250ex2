@@ -1,13 +1,11 @@
 package com.example.demo.Controllers;
 
 import com.example.demo.Services.PollService;
-import com.example.demo.model.Poll;
-import com.example.demo.model.User;
-import com.example.demo.model.Vote;
-import com.example.demo.model.VoteOption;
+import com.example.demo.model.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Map;
@@ -28,11 +26,26 @@ import static org.springframework.web.bind.annotation.RequestMethod.*;
 @RequestMapping("/api/v1/polls")
 public class PollController {
 
+    private VoteOptionRepo voteOptionRepo;
     private PollService pollService;
 
     @Autowired
-    public PollController(PollService pollService) {
+    public PollController(VoteOptionRepo voteOptionRepo, PollService pollService) {
+        this.voteOptionRepo = voteOptionRepo;
         this.pollService = pollService;
+    }
+    static class VoteRequest {
+        private UUID optionId;     // test may send "optionId"
+        private UUID voteOptionId; // or it may send "voteOptionId"
+
+        public UUID getOptionId() { return optionId; }
+        public void setOptionId(UUID optionId) { this.optionId = optionId; }
+        public UUID getVoteOptionId() { return voteOptionId; }
+        public void setVoteOptionId(UUID voteOptionId) { this.voteOptionId = voteOptionId; }
+
+        UUID resolvedOptionId() {
+            return optionId != null ? optionId : voteOptionId;
+        }
     }
 
     @PostMapping("/{uid}")
@@ -44,11 +57,15 @@ public class PollController {
     public List<Poll> getPolls(@PathVariable("uid") UUID uid) {
         return pollService.getPolls(uid);
     }
+
+
     @PostMapping("/{pid}/votes")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void addVote(@PathVariable("pid") UUID pid, @RequestBody Map<String, Object> body) {
+    public boolean addVote(@PathVariable("pid") UUID pollId, @RequestBody VoteRequest body) {
+        /*
         UUID userId = UUID.fromString(String.valueOf(body.get("user")));
         UUID optionId = UUID.fromString(String.valueOf(body.get("voteOption")));
+        VoteOption option = voteOptionRepo.findById(optionId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Option not found"));
 
         java.time.Instant publishedAt = null;
         Object ts = body.get("publishedAt");
@@ -59,16 +76,35 @@ public class PollController {
         User user = new User();
         user.setId(userId);
 
-        VoteOption opt = new VoteOption();
-        opt.setId(optionId);
+        option.setId(optionId);
 
         Vote vote = new Vote();
         vote.setUser(user);
-        vote.setVoteOption(opt);
+        vote.setVoteOption(option);
         if (publishedAt != null) vote.setPublishedAt(publishedAt);
 
-        pollService.addVote(pid, vote);
+        pollService.addVote(pid, vote);*/
+        UUID optionId = (body != null) ? body.resolvedOptionId() : null;
+        if (optionId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Missing optionId/voteOptionId");
+        }
+
+        VoteOption option = voteOptionRepo.findById(optionId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Option not found"));
+
+        // Safety: ensure the option belongs to the URL poll
+        if (option.getPoll() == null || !option.getPoll().getId().equals(pollId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Option does not belong to poll");
+        }
+
+        // Build the domain Vote and attach the managed option
+        Vote vote = new Vote();
+        vote.setVoteOption(option);
+
+        return pollService.addVote(pollId, vote);
     }
+    }
+
     @GetMapping("/{pid}/votes")
     public List<Vote> getVotes(@PathVariable("pid") UUID pid) {
         return pollService.getVotes(pid);
@@ -88,4 +124,5 @@ public class PollController {
     public void deleteOption(@PathVariable("pid") UUID pid, @PathVariable("oid") UUID oid) {
         pollService.deleteOption(pid, oid);
     }
+
 }

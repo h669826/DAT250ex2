@@ -1,3 +1,4 @@
+
 plugins {
     java
     id("org.springframework.boot") version "3.5.4"
@@ -24,8 +25,15 @@ dependencies {
     testRuntimeOnly("com.h2database:h2:2.3.232")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.3")
-}
 
+    implementation("org.springframework.boot:spring-boot-starter-data-redis")
+    implementation("redis.clients:jedis:6.2.0")
+    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
+    runtimeOnly("com.h2database:h2:2.3.232")
+}
+configurations.all {
+    exclude("com.vaadin.external.google', module: 'android-json")
+}
 tasks.test {
     useJUnitPlatform()
 }

@@ -1,12 +1,10 @@
 package com.example.demo.Services;
 
 import com.example.demo.DomainManager;
-import com.example.demo.model.Poll;
-import com.example.demo.model.User;
-import com.example.demo.model.Vote;
-import com.example.demo.model.VoteOption;
+import com.example.demo.model.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;
@@ -14,11 +12,14 @@ import java.util.UUID;
 @Service
 public class PollServiceImp implements PollService {
 
+    private final PollResultService pollResultService;
     private DomainManager domainManager;
+    private VoteRepo voteRepo;
 
     @Autowired
-    public PollServiceImp(DomainManager domainManager) {
+    public PollServiceImp(DomainManager domainManager, PollResultService pollResultService) {
         this.domainManager = domainManager;
+        this.pollResultService = pollResultService;
     }
 
     @Override
@@ -37,8 +38,11 @@ public class PollServiceImp implements PollService {
     }
 
     @Override
-    public void addVote(UUID pid, Vote vote) {
-        domainManager.addVote(pid, vote);
+    @Transactional
+    public boolean addVote(UUID pollID, Vote vote) {
+        voteRepo.save(vote);
+        pollResultService.onVotePersisted(vote);
+        return true;
     }
 
     @Override
