@@ -32,7 +32,7 @@ dependencies {
     runtimeOnly("com.h2database:h2:2.3.232")
 }
 configurations.all {
-    exclude("com.vaadin.external.google', module: 'android-json")
+    exclude(group = "com.vaadin.external.google", module = "android-json")
 }
 tasks.test {
     useJUnitPlatform()

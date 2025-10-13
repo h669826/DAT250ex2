@@ -13,11 +13,13 @@ import java.util.UUID;
 @Access(AccessType.PROPERTY)
 public class Poll {
 
-    private UUID id = UUID.randomUUID();
+    @Id
+    @GeneratedValue
+    @Column(nullable = false, updatable = false)
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
+    private UUID id;
     private String question;
 
-    @ManyToOne(optional = false)
-    @JoinColumn(name = "created_by_id", nullable = false)
     private User creator;
 
     @OneToMany(mappedBy = "poll", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -35,8 +37,17 @@ public class Poll {
     public String getQuestion() { return question; }
     public void setQuestion(String question) { this.question = question; }
 
+    private User user;
+
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "user_id", nullable = false)
+    public User getUser() { return user; }
+    public void setUser(User user) { this.user = user; }
+
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     @ManyToOne(optional = false)
-    @JsonIgnore
+    @JoinColumn(name = "created_by_id", nullable = false)
     public User getCreatedBy() { return creator; }
     public void setCreatedBy(User u) {
         this.creator = u;

@@ -2,6 +2,7 @@ package com.example.demo.Services;
 
 import com.example.demo.DomainManager;
 import com.example.demo.model.User;
+import com.example.demo.model.UserRepo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -11,30 +12,31 @@ import java.util.UUID;
 @Service
 public class UserServiceImp implements UserService {
 
-    private final DomainManager domainManager;
+    private final UserRepo userRepo;
 
     @Autowired
-    public UserServiceImp(DomainManager domainManager) {
-        this.domainManager = domainManager;
+    public UserServiceImp(UserRepo userRepo) {
+        this.userRepo = userRepo;
     }
 
     @Override
     public void addUser(User user) {
-        domainManager.addUser(user);
+        userRepo.save(user);
     }
 
     @Override
     public User getUser(UUID uid) {
-        return domainManager.getUser(uid);
+        return userRepo.findById(uid).orElse(null);
     }
 
     @Override
     public void deleteUser(UUID uid) {
-        domainManager.deleteUser(uid);
+        userRepo.deleteById(uid);
     }
 
     @Override
     public List<User> getUsers() {
-        return domainManager.getUsers();
+        return userRepo.findAll();
     }
 }
+

@@ -13,12 +13,14 @@ import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 @Access(AccessType.PROPERTY)
 public class VoteOption {
 
-    private UUID id = UUID.randomUUID();
+    @Id
+    @GeneratedValue
+    @Column(nullable = false, updatable = false)
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
+    private UUID id;
     private String caption;
     private int presentationOrder;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "poll_id", nullable = false)
     private Poll poll;
 
     public VoteOption() {}
@@ -41,9 +43,9 @@ public class VoteOption {
     @JsonProperty("order")
     public void setOrder(int v) { this.presentationOrder = v; }
 
-    @ManyToOne(optional = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "poll_id", nullable = false)
-    @JsonIgnore
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     public Poll getPoll() { return poll; }
     public void setPoll(Poll poll) { this.poll = poll; }
 

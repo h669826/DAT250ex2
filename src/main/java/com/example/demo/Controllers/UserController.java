@@ -2,9 +2,11 @@ package com.example.demo.Controllers;
 
 import com.example.demo.Services.UserService;
 import com.example.demo.model.User;
+import com.example.demo.model.UserRepo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.UUID;
@@ -23,30 +25,20 @@ import static org.springframework.web.bind.annotation.RequestMethod.*;
 @RestController
 @RequestMapping("/api/v1/users")
 public class UserController {
+    private final UserRepo userRepo;
 
-    private UserService userService;
-
-    @Autowired
-    public void setUserService(UserService userService) {
-        this.userService = userService;
-    }
-
-    @GetMapping
-    public List<User> getUsers() {
-        return userService.getUsers();
-    }
-    @GetMapping("/{uid}")
-    public User getUser(@PathVariable("uid") UUID uid) {
-        return userService.getUser(uid);
+    public UserController(UserRepo userRepo) {
+        this.userRepo = userRepo;
     }
     @PostMapping
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void addUser(@RequestBody User user) {
-        userService.addUser(user);
+    public User create(@RequestBody User u) {
+        u.setId(null);           // let JPA generate
+        return userRepo.save(u);
     }
-    @DeleteMapping("/{uid}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteUser(@PathVariable("uid") UUID uid) {
-        userService.deleteUser(uid);
+
+    @GetMapping("/{id}")
+    public User get(@PathVariable UUID id) {
+        return userRepo.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
     }
 }

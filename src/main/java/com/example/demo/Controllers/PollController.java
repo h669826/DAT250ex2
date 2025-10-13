@@ -1,7 +1,10 @@
 package com.example.demo.Controllers;
 
 import com.example.demo.Services.PollService;
+import com.example.demo.dto.CreatePollDto;
+import com.example.demo.dto.UpdatePollDto;
 import com.example.demo.model.*;
+import com.fasterxml.jackson.annotation.JsonAlias;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
@@ -26,33 +29,41 @@ import static org.springframework.web.bind.annotation.RequestMethod.*;
 @RequestMapping("/api/v1/polls")
 public class PollController {
 
-    private VoteOptionRepo voteOptionRepo;
     private PollService pollService;
 
     @Autowired
-    public PollController(VoteOptionRepo voteOptionRepo, PollService pollService) {
-        this.voteOptionRepo = voteOptionRepo;
+    public PollController(PollService pollService) {
         this.pollService = pollService;
-    }
-    static class VoteRequest {
-        private UUID optionId;     // test may send "optionId"
-        private UUID voteOptionId; // or it may send "voteOptionId"
-
-        public UUID getOptionId() { return optionId; }
-        public void setOptionId(UUID optionId) { this.optionId = optionId; }
-        public UUID getVoteOptionId() { return voteOptionId; }
-        public void setVoteOptionId(UUID voteOptionId) { this.voteOptionId = voteOptionId; }
-
-        UUID resolvedOptionId() {
-            return optionId != null ? optionId : voteOptionId;
-        }
     }
 
     @PostMapping("/{uid}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void addPoll(@PathVariable("uid") UUID uid, @RequestBody Poll poll) {
-        pollService.addPoll(uid, poll);
+    public Poll create(@PathVariable UUID uid, @RequestBody CreatePollDto dto) {
+        return pollService.createPoll(uid, dto);
     }
+
+    @PutMapping("/{pollId}")
+    public Poll update(@PathVariable UUID pollId, @RequestBody UpdatePollDto dto) {
+        return pollService.updatePoll(pollId, dto);
+    }
+
+    static class VoteRequest {
+        @JsonAlias({"voteOption", "voteOptionId"})
+        private UUID optionId;
+
+        private UUID user;
+
+        private java.time.Instant publishedAt;
+
+        public UUID getOptionId() { return optionId; }
+        public void setOptionId(UUID optionId) { this.optionId = optionId; }
+
+        public UUID getUser() { return user; }
+        public void setUser(UUID user) { this.user = user; }
+
+        public java.time.Instant getPublishedAt() { return publishedAt; }
+        public void setPublishedAt(java.time.Instant publishedAt) { this.publishedAt = publishedAt; }
+    }
+
     @GetMapping("/{uid}")
     public List<Poll> getPolls(@PathVariable("uid") UUID uid) {
         return pollService.getPolls(uid);
@@ -61,49 +72,26 @@ public class PollController {
 
     @PostMapping("/{pid}/votes")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public boolean addVote(@PathVariable("pid") UUID pollId, @RequestBody VoteRequest body) {
-        /*
-        UUID userId = UUID.fromString(String.valueOf(body.get("user")));
-        UUID optionId = UUID.fromString(String.valueOf(body.get("voteOption")));
-        VoteOption option = voteOptionRepo.findById(optionId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Option not found"));
-
-        java.time.Instant publishedAt = null;
-        Object ts = body.get("publishedAt");
-        if (ts != null) {
-            publishedAt = java.time.Instant.parse(String.valueOf(ts));
+    public void addVote(@PathVariable("pid") UUID pid, @RequestBody VoteRequest body) {
+        if (body == null || body.getOptionId() == null || body.getUser() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Missing user/option");
         }
+        var v = new Vote();
 
-        User user = new User();
-        user.setId(userId);
+        var vo = new VoteOption();
+        vo.setId(body.getOptionId());
+        v.setVoteOption(vo);
 
-        option.setId(optionId);
+        var u = new User();
+        u.setId(body.getUser());
+        v.setUser(u);
 
-        Vote vote = new Vote();
-        vote.setUser(user);
-        vote.setVoteOption(option);
-        if (publishedAt != null) vote.setPublishedAt(publishedAt);
+        v.setPublishedAt(body.getPublishedAt());
 
-        pollService.addVote(pid, vote);*/
-        UUID optionId = (body != null) ? body.resolvedOptionId() : null;
-        if (optionId == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Missing optionId/voteOptionId");
-        }
-
-        VoteOption option = voteOptionRepo.findById(optionId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Option not found"));
-
-        // Safety: ensure the option belongs to the URL poll
-        if (option.getPoll() == null || !option.getPoll().getId().equals(pollId)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Option does not belong to poll");
-        }
-
-        // Build the domain Vote and attach the managed option
-        Vote vote = new Vote();
-        vote.setVoteOption(option);
-
-        return pollService.addVote(pollId, vote);
+        boolean ok = pollService.addVote(pid, v);
+        if (!ok) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Vote was rejected");
     }
-    }
+
 
     @GetMapping("/{pid}/votes")
     public List<Vote> getVotes(@PathVariable("pid") UUID pid) {

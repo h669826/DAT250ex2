@@ -15,13 +15,14 @@ public class Vote {
     private UUID id = UUID.randomUUID();
 
     @ManyToOne(optional = false)
-    @JoinColumn(name = "voted_by_id")
+    @JoinColumn(name = "user_id")
     private User user;
 
     @ManyToOne(optional = false)
-    @JoinColumn(name = "vote_option_id")
+    @JoinColumn(name = "option_id")
     private VoteOption option;
 
+    @Column(nullable = true)
     private Instant publishedAt = Instant.now();
 
     public Vote() {}
@@ -52,7 +53,7 @@ public class Vote {
 
     @ManyToOne(optional = false)
     @JsonIgnore
-    public VoteOption getVotesOn() { return option; }
+    public VoteOption getVoteOption() { return option; }
     public void setVotesOn(VoteOption option) { this.option = option; }
 
     @Column(name = "published_at", nullable = false)

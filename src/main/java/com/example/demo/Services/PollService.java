@@ -1,5 +1,7 @@
 package com.example.demo.Services;
 
+import com.example.demo.dto.CreatePollDto;
+import com.example.demo.dto.UpdatePollDto;
 import com.example.demo.model.Poll;
 import com.example.demo.model.User;
 import com.example.demo.model.Vote;
@@ -16,4 +18,6 @@ public interface PollService {
     List<Vote> getVotes(UUID pid);
     void addOption(UUID pid, VoteOption option);
     void deleteOption(UUID pid, UUID oid);
+    Poll createPoll(UUID userId, CreatePollDto dto);
+    Poll updatePoll(UUID pollId, UpdatePollDto dto);
 }

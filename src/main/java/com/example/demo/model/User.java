@@ -16,7 +16,11 @@ import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 @Access(AccessType.PROPERTY)
 public class User {
 
-    private UUID id = UUID.randomUUID();
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)  // Hibernate 6 + Spring Boot 3.x
+    @Column(nullable = false, updatable = false)
+    private java.util.UUID id;
     private String username;
     private String email;
     private List<Poll> createdPolls = new ArrayList<>();
