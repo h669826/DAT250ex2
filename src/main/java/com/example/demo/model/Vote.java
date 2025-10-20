@@ -68,7 +68,7 @@ public class Vote {
     @Transient
     @JsonProperty("voteOption")
     @JsonIdentityReference(alwaysAsId = true)
-    public VoteOption getOption() { return option; }
+    public VoteOption getVoteOption() { return option; }
     public void setOption(VoteOption o) {
         setVotesOn(o);
     }

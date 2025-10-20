@@ -1,0 +1,9 @@
+.gradle/
+build/
+target/
+out/
+.idea/
+.vscode/
+*.iml
+Dockerfile
+docker-compose.yml
