@@ -1,15 +1,19 @@
 package com.example.demo.Controllers;
 
 import com.example.demo.Services.PollService;
+import com.example.demo.Services.UserService;
 import com.example.demo.dto.CreatePollDto;
 import com.example.demo.dto.UpdatePollDto;
 import com.example.demo.model.*;
 import com.fasterxml.jackson.annotation.JsonAlias;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -29,17 +33,31 @@ import static org.springframework.web.bind.annotation.RequestMethod.*;
 @RequestMapping("/api/v1/polls")
 public class PollController {
 
-    private PollService pollService;
+    private final PollService pollService;
+    private final UserService userService;
 
     @Autowired
-    public PollController(PollService pollService) {
+    public PollController(PollService pollService, UserService userService) {
         this.pollService = pollService;
+        this.userService = userService;
     }
 
-    @PostMapping("/{uid}")
-    public Poll create(@PathVariable UUID uid, @RequestBody CreatePollDto dto) {
-        return pollService.createPoll(uid, dto);
+    @PostMapping(
+            path = "/{uid:[0-9a-fA-F\\-]{36}}",
+            consumes = MediaType.APPLICATION_JSON_VALUE,
+            produces = MediaType.APPLICATION_JSON_VALUE
+    )
+    @ResponseStatus(HttpStatus.CREATED)
+    public Poll createForUser(@PathVariable UUID uid, @RequestBody CreatePollDto dto) {
+        return pollService.createForUser(uid, dto);
     }
+
+    /*@GetMapping("/api/v1/users/by-email/{email}")
+    public ResponseEntity<User> getByEmail(@PathVariable String email) {
+        return userService.getUserByEmail(email)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }*/
 
     @PutMapping("/{pollId}")
     public Poll update(@PathVariable UUID pollId, @RequestBody UpdatePollDto dto) {
@@ -64,39 +82,27 @@ public class PollController {
         public void setPublishedAt(java.time.Instant publishedAt) { this.publishedAt = publishedAt; }
     }
 
-    @GetMapping("/{uid}")
-    public List<Poll> getPolls(@PathVariable("uid") UUID uid) {
+    @GetMapping(path = "/{uid:[0-9a-fA-F\\-]{36}}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public List<Poll> getPolls(@PathVariable UUID uid) {
         return pollService.getPolls(uid);
     }
 
 
-    @PostMapping("/{pid}/votes")
+    @PostMapping(path = "/{pid}/votes", consumes = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void addVote(@PathVariable("pid") UUID pid, @RequestBody VoteRequest body) {
         if (body == null || body.getOptionId() == null || body.getUser() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Missing user/option");
         }
-        var v = new Vote();
-
-        var vo = new VoteOption();
-        vo.setId(body.getOptionId());
-        v.setVoteOption(vo);
-
-        var u = new User();
-        u.setId(body.getUser());
-        v.setUser(u);
-
-        v.setPublishedAt(body.getPublishedAt());
-
-        boolean ok = pollService.addVote(pid, v);
-        if (!ok) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Vote was rejected");
+        pollService.addVote(pid, body.getUser(), body.getOptionId(), body.getPublishedAt());
     }
 
 
-    @GetMapping("/{pid}/votes")
+    @GetMapping(path = "/{pid}/votes", produces = MediaType.APPLICATION_JSON_VALUE)
     public List<Vote> getVotes(@PathVariable("pid") UUID pid) {
         return pollService.getVotes(pid);
     }
+
     @DeleteMapping("/{pid}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deletePoll(@PathVariable("pid") UUID pid) {

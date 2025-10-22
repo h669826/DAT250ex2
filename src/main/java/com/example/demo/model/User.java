@@ -11,29 +11,36 @@ import com.fasterxml.jackson.annotation.JsonIdentityInfo;
 import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 
 @JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
+@Access(AccessType.FIELD)
 @Entity
 @Table(name = "users")
-@Access(AccessType.PROPERTY)
 public class User {
 
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)  // Hibernate 6 + Spring Boot 3.x
-    @Column(nullable = false, updatable = false)
-    private java.util.UUID id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
+
+    @Column(nullable = false, unique = true)
     private String username;
+
+    @Column(nullable = false, unique = true)
     private String email;
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Poll> createdPolls = new ArrayList<>();
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Vote> votes = new ArrayList<>();
 
     public User() {}
     public User(String username, String email) { this.username = username; this.email = email; }
 
-    @Id
+    @Transient
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
 
-    @Column(nullable = false, unique = true)
+    @Transient
     public String getUsername() { return username; }
     public void setUsername(String username) { this.username = username; }
 
@@ -44,43 +51,39 @@ public class User {
     @JsonProperty("username")
     public void setName(String username) { this.username = username; }
 
-    @Column(nullable = false, unique = true)
+    @Transient
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
 
-    @OneToMany(mappedBy = "createdBy", cascade = CascadeType.ALL, orphanRemoval = true)
-    @JsonIgnore
+    @Transient
+    @JsonProperty("created")
     public List<Poll> getCreated() {
         if (createdPolls == null) createdPolls = new ArrayList<>();
         return createdPolls;
     }
+    @Transient
     public void setCreated(List<Poll> created) { this.createdPolls = created; }
 
-    @OneToMany(mappedBy = "votedBy", cascade = CascadeType.ALL, orphanRemoval = true)
-    @JsonIgnore
+    @Transient
     public List<Vote> getVotes() { return votes; }
+    @Transient
     public void setVotes(List<Vote> votes) { this.votes = votes; }
 
     public Poll createPoll(String question) {
         Poll p = new Poll();
         p.setQuestion(question);
-        p.setCreatedBy(this);
+        p.setUser(this);
         createdPolls.add(p);
         return p;
     }
 
     public Vote voteFor(VoteOption option) {
         Vote v = new Vote();
-        v.setVotedBy(this);
-        v.setVotesOn(option);
+        v.setUser(this);
+        v.setVoteOption(option);
         votes.add(v);
         return v;
     }
-
-    @Transient
-    public List<Poll> getCreatedPolls() { return createdPolls; }
-    @Transient
-    public void setCreatedPolls(List<Poll> cps) { this.createdPolls = cps; }
 
     @Override
     public boolean equals(Object o) {

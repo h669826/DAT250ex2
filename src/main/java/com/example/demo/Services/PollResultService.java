@@ -47,7 +47,7 @@ public class PollResultService {
     @Transactional
     public void onVotePersisted(Vote vote){
         int ord = vote.getVoteOption().getPresentationOrder();
-        UUID optionId = vote.getOption().getId();
+        UUID optionId = vote.getVoteOption().getId();
         UUID pollId = voteOptionRepo.findPollIdByOptionId(optionId);
         cache.increment(pollId, ord);
     }

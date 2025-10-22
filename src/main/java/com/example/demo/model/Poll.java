@@ -10,7 +10,8 @@ import java.util.UUID;
 @JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
 @Entity
 @Table(name = "polls")
-@Access(AccessType.PROPERTY)
+@Access(AccessType.FIELD)
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Poll {
 
     @Id
@@ -20,53 +21,46 @@ public class Poll {
     private UUID id;
     private String question;
 
-    private User creator;
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;
 
     @OneToMany(mappedBy = "poll", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonManagedReference
     private List<VoteOption> voteOptions = new ArrayList<>();
 
+    @Column(name = "published_at", nullable = false)
     private Instant publishedAt = Instant.now();
+
+    @Column(name = "valid_until")
+    private Instant validUntil;
 
     public Poll() {}
 
-    @Id
+    @Transient
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
 
-    @Column(nullable = false)
     public String getQuestion() { return question; }
     public void setQuestion(String question) { this.question = question; }
 
-    private User user;
-
-    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "user_id", nullable = false)
+    @Transient
     public User getUser() { return user; }
-    public void setUser(User user) { this.user = user; }
-
-    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
-    @ManyToOne(optional = false)
-    @JoinColumn(name = "created_by_id", nullable = false)
-    public User getCreatedBy() { return creator; }
-    public void setCreatedBy(User u) {
-        this.creator = u;
+    public void setUser(User u) {
+        this.user = u;
         if (u != null) {
             var created = u.getCreated();
             if (!created.contains(this)) created.add(this);
         }
     }
 
-    @OneToMany(mappedBy = "poll", cascade = CascadeType.ALL, orphanRemoval = true)
-    @OrderBy("presentationOrder ASC")
-    @JsonIgnore
-    public List<VoteOption> getOptions() {
-        if (voteOptions == null) voteOptions = new ArrayList<>();
-        return voteOptions;
+    public Instant getValidUntil() {
+        return validUntil;
     }
-    public void setOptions(List<VoteOption> opts) { this.voteOptions = opts; }
+    public void setValidUntil(Instant validUntil) {
+        this.validUntil = validUntil;
+    }
 
-    @Column(name = "published_at", nullable = false)
     public Instant getPublishedAt() { return publishedAt; }
     public void setPublishedAt(Instant publishedAt) { this.publishedAt = publishedAt; }
 
@@ -79,23 +73,24 @@ public class Poll {
         return opt;
     }
 
-    @Transient
-    @JsonProperty("creator")
-    @JsonIdentityReference(alwaysAsId = true)
-    public User getCreator() { return creator; }
-    @JsonProperty("creator")
-    @JsonIdentityReference(alwaysAsId = true)
-    public void setCreator(User creator) {
-        setCreatedBy(creator);
+    public void addOption(VoteOption opt) {
+        voteOptions.add(opt);
+        opt.setPoll(this);
+    }
+    public void removeOption(VoteOption opt) {
+        voteOptions.remove(opt);
+        opt.setPoll(null);
     }
 
     @Transient
-    @JsonProperty("createdBy")
+    @JsonProperty("user")
     @JsonIdentityReference(alwaysAsId = true)
-    public User getCreatedByJson() { return creator; }
-    @JsonProperty("createdBy")
+    public User getCreator() { return user; }
+    @JsonProperty("user")
     @JsonIdentityReference(alwaysAsId = true)
-    public void setCreatedByJson(User u) { setCreatedBy(u); }
+    public void setCreator(User user) {
+        setUser(user);
+    }
 
     @Transient
     @JsonProperty("voteOptions")
@@ -104,12 +99,6 @@ public class Poll {
         this.voteOptions.clear();
         if (voteOptions != null) this.voteOptions.addAll(voteOptions);
     }
-
-    @Transient
-    @JsonProperty("options")
-    public List<VoteOption> getOptionsJson() { return voteOptions; }
-    @JsonProperty("options")
-    public void setOptionsJson(List<VoteOption> opts) { this.voteOptions = opts; }
 
     @Override
     public boolean equals(Object o) {

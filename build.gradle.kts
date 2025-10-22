@@ -1,8 +1,11 @@
+import org.gradle.kotlin.dsl.annotationProcessor
+import org.gradle.kotlin.dsl.compileOnly
 
 plugins {
     java
     id("org.springframework.boot") version "3.5.4"
     id("io.spring.dependency-management") version "1.1.6"
+    id("io.freefair.lombok") version "8.10.2"
 }
 
 java {
@@ -16,8 +19,17 @@ repositories {
 }
 
 dependencies {
+    compileOnly("org.projectlombok:lombok")
+    annotationProcessor("org.projectlombok:lombok")
+
+    testCompileOnly("org.projectlombok:lombok")
+    testAnnotationProcessor("org.projectlombok:lombok")
+
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     implementation("org.springframework.boot:spring-boot-starter-web")
+    implementation("com.fasterxml.jackson.core:jackson-databind")
+
+    implementation("org.springframework.boot:spring-boot-starter-amqp")
 
     implementation("jakarta.persistence:jakarta.persistence-api:3.2.0")
     testImplementation("org.hibernate.orm:hibernate-core:7.1.1.Final")

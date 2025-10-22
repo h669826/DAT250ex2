@@ -9,39 +9,44 @@ import java.util.UUID;
 @JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
 @Entity
 @Table(name = "votes")
-@Access(AccessType.PROPERTY)
+@Access(AccessType.FIELD)
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Vote {
 
-    private UUID id = UUID.randomUUID();
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
 
-    @ManyToOne(optional = false)
+    @ManyToOne(optional = false,  fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
+    @JsonIgnore
     private User user;
 
     @ManyToOne(optional = false)
-    @JoinColumn(name = "option_id")
-    private VoteOption option;
+    @JoinColumn(name = "vote_option_id")
+    @JsonIgnore
+    private VoteOption voteOption;
 
-    @Column(nullable = true)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "poll_id", nullable = false)
+    private Poll poll;
+
+    @Column(name = "published_at", nullable = true)
     private Instant publishedAt = Instant.now();
 
     public Vote() {}
 
-    @Id
+
+    @Transient
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
 
-    @ManyToOne(optional = false)
-    @JsonIgnore
-    public User getVotedBy() { return user; }
-
     @Transient
-    @JsonProperty("user")
-    @JsonIdentityReference(alwaysAsId = true)
+    @JsonIgnore
     public User getUser(){
         return user;
     }
-    public void setVotedBy(User u) {
+    public void setUser(User u) {
         this.user = u;
         if (u != null) {
             List<Vote> vs = u.getVotes();
@@ -51,42 +56,26 @@ public class Vote {
         }
     }
 
-    @ManyToOne(optional = false)
     @JsonIgnore
-    public VoteOption getVoteOption() { return option; }
-    public void setVotesOn(VoteOption option) { this.option = option; }
+    public VoteOption getVoteOption() { return voteOption; }
 
-    @Column(name = "published_at", nullable = false)
     public Instant getPublishedAt() { return publishedAt; }
     public void setPublishedAt(Instant publishedAt) { this.publishedAt = publishedAt; }
 
-    @JsonProperty("user")
-    @JsonIdentityReference(alwaysAsId = true)
-    public void setUser(User u) {
-        setVotedBy(u);
-    }
-
-    @Transient
-    @JsonProperty("voteOption")
-    @JsonIdentityReference(alwaysAsId = true)
-    public VoteOption getOption() { return option; }
-    public void setOption(VoteOption o) {
-        setVotesOn(o);
-    }
-
-    @JsonProperty("voteOption")
-    @JsonIdentityReference(alwaysAsId = true)
     public void setVoteOption(VoteOption opt) {
-        this.option = opt;
+        this.voteOption = opt;
     }
 
-    @Transient
-    @JsonProperty("option")
-    @JsonIdentityReference(alwaysAsId = true)
-    public VoteOption getOptionAlias() { return option; }
-    @JsonProperty("option")
-    @JsonIdentityReference(alwaysAsId = true)
-    public void setOptionAlias(VoteOption opt) { setVotesOn(opt); }
+    @JsonProperty("voteOption")
+    public String getVoteOptionIdForJson() {
+        return (voteOption != null) ? voteOption.getId().toString() : null;
+    }
+
+    @JsonProperty("user")
+    public String getUserIdForJson() {
+        return (user != null) ? user.getId().toString() : null;
+    }
+
 
     @Override
     public boolean equals(Object o) {
@@ -100,6 +89,12 @@ public class Vote {
         return id != null ? id.hashCode() : 0;
     }
 
+    public Poll getPoll() {
+        return poll;
+    }
+    public void setPoll(Poll poll) {
+        this.poll = poll;
+    }
 }
 
 

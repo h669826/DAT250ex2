@@ -8,6 +8,10 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
+import org.springframework.http.converter.HttpMessageConverter;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+
+import java.util.List;
 
 @SpringBootApplication
 public class DomainApplication {
@@ -30,4 +34,13 @@ public class DomainApplication {
             }
         };
     }
+    @Bean
+    public WebMvcConfigurer logConverters() {
+        return new WebMvcConfigurer() {
+            @Override public void configureMessageConverters(List<HttpMessageConverter<?>> converters) {
+                converters.forEach(c -> System.out.println("Converter: " + c));
+            }
+        };
+    }
+
 }

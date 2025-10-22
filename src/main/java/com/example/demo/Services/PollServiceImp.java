@@ -1,19 +1,25 @@
 package com.example.demo.Services;
 
-import com.example.demo.DomainManager;
 import com.example.demo.dto.CreatePollDto;
 import com.example.demo.dto.UpdatePollDto;
+import com.example.demo.messaging.PollMessaging;
 import com.example.demo.model.*;
+import org.springframework.amqp.core.AmqpAdmin;
+import org.springframework.amqp.core.Binding;
+import org.springframework.amqp.core.BindingBuilder;
+import org.springframework.amqp.core.TopicExchange;
+import org.springframework.amqp.core.Queue;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class PollServiceImp implements PollService {
@@ -23,40 +29,75 @@ public class PollServiceImp implements PollService {
     private final UserRepo userRepo;
     private final PollRepo pollRepo;
     private final VoteOptionRepo voteOptionRepo;
+    @Value("${messaging.enabled:false}")
+    boolean messagingEnabled;
+    @Autowired(required=false)
+    PollMessaging pollMessaging;
+    private final AmqpAdmin amqp;
+    private final TopicExchange pollsExchange;
 
 
     @Autowired
-    public PollServiceImp(PollResultService pollResultService, VoteRepo voteRepo, UserRepo userRepo, PollRepo pollRepo, VoteOptionRepo voteOptionRepo) {
+    public PollServiceImp(PollResultService pollResultService, VoteRepo voteRepo, UserRepo userRepo, PollRepo pollRepo, VoteOptionRepo voteOptionRepo, AmqpAdmin amqp, TopicExchange pollsExchange) {
         this.pollResultService = pollResultService;
         this.voteRepo = voteRepo;
         this.userRepo = userRepo;
         this.pollRepo = pollRepo;
         this.voteOptionRepo = voteOptionRepo;
+        this.amqp = amqp;
+        this.pollsExchange = pollsExchange;
+    }
+
+    @Transactional
+    public Poll createPoll(CreatePollDto dto, UUID ownerUserId) {
+        Poll poll = pollRepo.save(createForUser(ownerUserId, dto));
+
+        String qName = "poll." + poll.getId() + ".votes";
+        String rk    = "poll." + poll.getId() + ".votes";
+
+        Queue q = new Queue(qName, false, false, true);
+        amqp.declareQueue(q);
+
+        Binding b = BindingBuilder.bind(q).to(pollsExchange).with(rk);
+        amqp.declareBinding(b);
+
+        return poll;
     }
 
     @Override
     @Transactional
-    public Poll createPoll(UUID userId, CreatePollDto dto) {
-        User user = userRepo.findById(userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+    public Poll createForUser(UUID uid, CreatePollDto dto) {
+        User owner = userRepo.findById(uid)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No such user"));
 
-        Poll poll = new Poll();
-        poll.setUser(user);
-        poll.setCreatedBy(user);
-        poll.setQuestion(dto.question());
-
-        if (poll.getVoteOptions() == null) {
-            poll.setVoteOptions(new ArrayList<>());
+        if (dto == null || dto.getQuestion() == null || dto.getQuestion().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Missing question");
         }
-        if (dto.options() != null) {
-            for (String text : dto.options()) {
-                VoteOption opt = new VoteOption();
-                opt.setCaption(text);
-                opt.setPoll(poll);
-                poll.getVoteOptions().add(opt);
+
+        Poll p = new Poll();
+        p.setQuestion(dto.getQuestion());
+        p.setUser(owner);
+
+        if (dto.getPublishedAt() != null) {
+            p.setPublishedAt(dto.getPublishedAt());
+        } else {
+            p.setPublishedAt(Instant.now());
+        }
+
+        if (dto.getValidUntil() != null) {
+            p.setValidUntil(dto.getValidUntil());
+        }
+
+        if (dto.getVoteOptions() != null) {
+            for (CreatePollDto.OptionDto o : dto.getVoteOptions()) {
+                VoteOption vo = new VoteOption();
+                vo.setCaption(o.getCaption());
+                vo.setPresentationOrder(o.getPresentationOrder());
+                p.addOption(vo);
             }
         }
-        return pollRepo.save(poll);
+
+        return pollRepo.save(p);
     }
 
     @Override
@@ -103,9 +144,9 @@ public class PollServiceImp implements PollService {
         var userRef = userRepo.findById(uid)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
-        poll.setUser(userRef);
-        if (poll.getCreatedBy() == null) {
-            poll.setCreatedBy(userRef);
+        poll.setCreator(userRef);
+        if (poll.getUser() == null) {
+            poll.setUser(userRef);
         }
 
         if (poll.getVoteOptions() != null) {
@@ -115,38 +156,40 @@ public class PollServiceImp implements PollService {
         }
 
         pollRepo.save(poll);
+
+        if (messagingEnabled && pollMessaging != null) {
+            pollMessaging.registerPollTopic(poll.getId());
+        }
+
     }
 
-    @Override
     @Transactional
-    public boolean addVote(UUID pollID, Vote vote) {
-        UUID userId   = vote.getUser() != null ? vote.getUser().getId() : null;
-        UUID optionId = vote.getVoteOption() != null ? vote.getVoteOption().getId() : null;
-        if (userId == null || optionId == null) return false;
+    public void addVote(UUID pollId, UUID userId, UUID optionId, Instant publishedAt) {
+        Poll poll = pollRepo.findById(pollId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Poll not found"));
 
-        var userRef   = userRepo.getReferenceById(userId);
-        var optionRef = voteOptionRepo.getReferenceById(optionId);
+        VoteOption option = voteOptionRepo.findById(optionId)
+                .filter(vo -> vo.getPoll() != null && pollId.equals(vo.getPoll().getId()))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Option not in this poll"));
 
-        var poll = optionRef.getPoll();
-        if (poll == null || !pollID.equals(poll.getId())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Option does not belong to poll");
+        User user = null;
+        if (userId != null) {
+            user = userRepo.findById(userId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
         }
 
-        vote.setUser(userRef);
-        vote.setVoteOption(optionRef);
-        if (vote.getPublishedAt() == null) {
-            vote.setPublishedAt(Instant.now());
-        }
+        Vote v = new Vote();
+        v.setPoll(poll);
+        v.setVoteOption(option);
+        v.setUser(user);
+        v.setPublishedAt(publishedAt != null ? publishedAt : Instant.now());
 
-        Vote saved = voteRepo.save(vote);
-        pollResultService.onVotePersisted(saved); // if you maintain cache
-        return true;
+        voteRepo.save(v);
     }
 
     @Transactional(readOnly = true)
-    @Override
-    public List<Vote> getVotes(UUID pid) {
-        return voteRepo.findByVoteOption_Poll_Id(pid);
+    public List<Vote> getVotes(UUID pollId) {
+        return voteRepo.findByVoteOption_Poll_IdOrderByPublishedAtAsc(pollId);
     }
 
     @Transactional
@@ -171,13 +214,45 @@ public class PollServiceImp implements PollService {
     }
 
     @Override
-    public void deletePoll(UUID pid) {
-        Poll poll = pollRepo.getReferenceById(pid);
-        pollRepo.delete(poll);
+    @Transactional
+    public void deletePoll(UUID pollId) {
+        if (!pollRepo.existsById(pollId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Poll not found");
+        }
+        voteRepo.deleteByVoteOption_Poll_Id(pollId);
+
+        voteOptionRepo.deleteByPoll_Id(pollId);
+
+        pollRepo.deleteById(pollId);
     }
 
     @Override
     public List<Poll> getPolls(UUID uid) {
         return pollRepo.findByUserId(uid);
+    }
+
+    @Transactional
+    @Override
+    public void addVoteFromBroker(UUID pollId, UUID optionId, @Nullable UUID userId, Instant publishedAt) {
+        var opt = voteOptionRepo.findById(optionId)
+                .orElseThrow(() -> new IllegalArgumentException("Unknown option: " + optionId));
+
+        Vote v = new Vote();
+        v.setVoteOption(opt);
+        v.setPublishedAt(publishedAt != null ? publishedAt : Instant.now());
+        if (userId != null) v.setUser(userRepo.findById(userId).get());
+        voteRepo.save(v);
+    }
+    @Transactional(readOnly = true)
+    public Map<UUID, Long> getTallies(UUID pollId) {
+        if (!pollRepo.existsById(pollId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Poll not found");
+        }
+        Map<UUID, Long> tallies = new HashMap<>();
+        voteRepo.countByPollGrouped(pollId).forEach(r -> tallies.put(r.getOptionId(), r.getCnt()));
+        pollRepo.findById(pollId)
+                .ifPresent(p -> p.getVoteOptions()
+                        .forEach(opt -> tallies.putIfAbsent(opt.getId(), 0L)));
+        return tallies;
     }
 }
